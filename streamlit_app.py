@@ -85,14 +85,6 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.markdown("### 👥 Tim Pengembang")
-    st.markdown("""
-    - Muhammad Iqbal Saputra
-    - Radit Arya Pradipta
-    - Muhammad Reza Alghifari
-    """)
-    
-    st.markdown("---")
     st.markdown("### 📚 Sumber Data")
     st.markdown("[UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients)")
 
