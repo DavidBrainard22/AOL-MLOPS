@@ -71,6 +71,20 @@ st.markdown("""
         border-radius: 8px;
         border-left: 4px solid #EF4444;
     }
+    .form-section {
+        background-color: #FFFFFF;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
+        margin-bottom: 1.5rem;
+    }
+    .form-title {
+        font-size: 1.25rem;
+        color: #1E3A8A;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #3B82F6;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -92,15 +106,14 @@ with st.sidebar:
 @st.cache_data
 def load_data():
     try:
-        # Load dataset dari file CSV (asumsi file sudah ada di repo)
+        # Load dataset dari file CSV
         df = pd.read_csv('default_of_credit_card_clients.csv', header=1)
         df = df.rename(columns={'default payment next month': 'default_payment'})
         df = df.drop(columns=['ID'], errors='ignore')
         return df
     except:
-        # Jika file tidak ada, gunakan sample data
+        # Jika file tidak ada, buat data sample
         st.warning("File dataset tidak ditemukan. Menggunakan data sample...")
-        # Buat data sample untuk demo
         np.random.seed(42)
         n_samples = 1000
         
@@ -134,7 +147,7 @@ def load_data():
         df = pd.DataFrame(data)
         return df
 
-# Fungsi untuk membuat model sederhana (untuk demo)
+# Fungsi untuk membuat model
 def train_model(df):
     from sklearn.model_selection import train_test_split
     from sklearn.ensemble import RandomForestClassifier
@@ -199,14 +212,6 @@ if menu_option == "🏠 Dashboard Utama":
     - Jumlah data: 30,000 nasabah
     - Fitur: 23 atribut demografi dan historis pembayaran
     - Target: Default payment next month (1 = ya, 0 = tidak)
-    
-    **Metodologi:**
-    1. Data Collection & Loading
-    2. Data Cleaning & Preprocessing
-    3. Exploratory Data Analysis (EDA)
-    4. Feature Engineering
-    5. Model Training & Evaluation
-    6. Deployment dengan Streamlit
     """)
     st.markdown("</div>", unsafe_allow_html=True)
     
@@ -238,7 +243,6 @@ elif menu_option == "📈 EDA & Visualisasi":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<h3 class='sub-header'>📊 Distribusi Fitur Numerik</h3>", unsafe_allow_html=True)
         
-        # Pilih fitur untuk visualisasi
         numeric_cols = ['LIMIT_BAL', 'AGE', 'BILL_AMT1', 'PAY_AMT1']
         selected_feature = st.selectbox("Pilih fitur untuk dilihat distribusinya:", numeric_cols)
         
@@ -251,7 +255,6 @@ elif menu_option == "📈 EDA & Visualisasi":
         
         st.pyplot(fig)
         
-        # Skewness dan Kurtosis
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Skewness", f"{df[selected_feature].skew():.2f}")
@@ -263,7 +266,6 @@ elif menu_option == "📈 EDA & Visualisasi":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<h3 class='sub-header'>🔗 Heatmap Korelasi</h3>", unsafe_allow_html=True)
         
-        # Hitung korelasi untuk beberapa kolom terpilih
         corr_cols = ['LIMIT_BAL', 'AGE', 'BILL_AMT1', 'BILL_AMT2', 
                     'PAY_AMT1', 'PAY_AMT2', 'default_payment']
         corr_matrix = df[corr_cols].corr()
@@ -275,13 +277,6 @@ elif menu_option == "📈 EDA & Visualisasi":
         
         st.pyplot(fig)
         
-        # Insight korelasi
-        st.markdown("**Insight:**")
-        st.markdown("""
-        - Korelasi tertinggi biasanya terlihat antar BILL_AMT (tagihan bulanan)
-        - Korelasi dengan target (default_payment) biasanya rendah
-        - Beberapa fitur pembayaran mungkin berkorelasi negatif dengan default
-        """)
         st.markdown("</div>", unsafe_allow_html=True)
     
     with tab3:
@@ -291,7 +286,6 @@ elif menu_option == "📈 EDA & Visualisasi":
         col1, col2 = st.columns(2)
         
         with col1:
-            # Pie chart distribusi target
             fig1, ax1 = plt.subplots(figsize=(8, 6))
             target_counts = df['default_payment'].value_counts()
             labels = ['Tidak Default', 'Default']
@@ -305,10 +299,7 @@ elif menu_option == "📈 EDA & Visualisasi":
             st.pyplot(fig1)
         
         with col2:
-            # Bar plot target berdasarkan kategori
             fig2, ax2 = plt.subplots(figsize=(8, 6))
-            
-            # Contoh: Default berdasarkan jenis kelamin
             sex_default = df.groupby('SEX')['default_payment'].mean() * 100
             sex_labels = ['Laki-laki', 'Perempuan']
             
@@ -318,7 +309,6 @@ elif menu_option == "📈 EDA & Visualisasi":
             ax2.set_title('Default Rate Berdasarkan Jenis Kelamin')
             ax2.grid(True, alpha=0.3)
             
-            # Tambah label nilai di atas bar
             for bar in bars:
                 height = bar.get_height()
                 ax2.text(bar.get_x() + bar.get_width()/2., height + 0.5,
@@ -332,106 +322,198 @@ elif menu_option == "📈 EDA & Visualisasi":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<h3 class='sub-header'>📊 Statistik Deskriptif</h3>", unsafe_allow_html=True)
         
-        # Tampilkan statistik deskriptif
         st.dataframe(df.describe().T, use_container_width=True)
         
-        # Insight statistik
-        st.markdown("**Key Insights:**")
-        st.markdown("""
-        1. **LIMIT_BAL**: Rata-rata limit kredit sekitar $167,000 dengan std dev tinggi
-        2. **AGE**: Usia rata-rata nasabah 35 tahun
-        3. **Default Rate**: Sekitar 22% nasabah mengalami default
-        4. **PAY_X**: Mayoritas pembayaran tepat waktu atau 1 bulan telat
-        5. **BILL_AMT**: Tagihan menunjukkan variasi yang besar
-        """)
         st.markdown("</div>", unsafe_allow_html=True)
 
-# Halaman Prediksi
+# Halaman Prediksi - INPUT LENGKAP
 elif menu_option == "🤖 Prediksi":
     st.markdown("<h1 class='main-header'>🤖 Prediksi Default Kartu Kredit</h1>", unsafe_allow_html=True)
     
     st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("<h3 class='sub-header'>📝 Input Data Nasabah</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 class='sub-header'>📝 Input Data Nasabah (Semua Fitur)</h3>", unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["Input Manual", "Upload CSV"])
+    tab1, tab2 = st.tabs(["Input Manual Lengkap", "Upload CSV"])
     
     with tab1:
-        st.markdown("**Masukkan data nasabah untuk diprediksi:**")
+        st.markdown("**Masukkan SEMUA data nasabah untuk prediksi yang akurat:**")
         
-        col1, col2, col3 = st.columns(3)
+        # Buat expander untuk setiap kelompok fitur
+        with st.expander("📋 **1. Data Demografis**", expanded=True):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                LIMIT_BAL = st.number_input("LIMIT_BAL (Limit Kredit dalam $)", 
+                                          min_value=0, 
+                                          max_value=1000000, 
+                                          value=200000, 
+                                          step=10000,
+                                          help="Total jumlah kredit yang diberikan")
+                
+                SEX = st.selectbox("SEX (Jenis Kelamin)", 
+                                  options=[1, 2], 
+                                  format_func=lambda x: "Laki-laki" if x == 1 else "Perempuan",
+                                  help="1 = Laki-laki, 2 = Perempuan")
+            
+            with col2:
+                EDUCATION = st.selectbox("EDUCATION (Pendidikan)", 
+                                       options=[1, 2, 3, 4], 
+                                       format_func=lambda x: {
+                                           1: "Pascasarjana",
+                                           2: "Sarjana",
+                                           3: "SMA",
+                                           4: "Lainnya"
+                                       }[x],
+                                       help="1 = Pascasarjana, 2 = Sarjana, 3 = SMA, 4 = Lainnya")
+                
+                MARRIAGE = st.selectbox("MARRIAGE (Status Pernikahan)", 
+                                      options=[1, 2, 3], 
+                                      format_func=lambda x: {
+                                          1: "Menikah",
+                                          2: "Lajang",
+                                          3: "Lainnya"
+                                      }[x],
+                                      help="1 = Menikah, 2 = Lajang, 3 = Lainnya")
+            
+            with col3:
+                AGE = st.slider("AGE (Usia dalam tahun)", 21, 79, 35)
         
-        with col1:
-            LIMIT_BAL = st.number_input("LIMIT_BAL (Limit Kredit)", 
-                                       min_value=0, 
-                                       max_value=1000000, 
-                                       value=200000, 
-                                       step=10000)
+        with st.expander("📅 **2. Status Pembayaran (PAY_X)**"):
+            st.markdown("**Status pembayaran bulan sebelumnya:**")
+            col1, col2 = st.columns(2)
             
-            SEX = st.selectbox("SEX (Jenis Kelamin)", 
-                              options=[1, 2], 
-                              format_func=lambda x: "Laki-laki" if x == 1 else "Perempuan")
+            pay_options = {
+                -2: "Tidak ada transaksi/konsumsi",
+                -1: "Bayar penuh",
+                0: "Pembayaran minimum/tidak ada keterlambatan",
+                1: "Telat 1 bulan",
+                2: "Telat 2 bulan",
+                3: "Telat 3 bulan",
+                4: "Telat 4 bulan",
+                5: "Telat 5 bulan",
+                6: "Telat 6 bulan",
+                7: "Telat 7 bulan",
+                8: "Telat 8 bulan"
+            }
             
-            EDUCATION = st.selectbox("EDUCATION (Pendidikan)", 
-                                   options=[1, 2, 3, 4], 
-                                   format_func=lambda x: {
-                                       1: "Pascasarjana",
-                                       2: "Sarjana",
-                                       3: "SMA",
-                                       4: "Lainnya"
-                                   }[x])
+            with col1:
+                PAY_0 = st.selectbox("PAY_0 (Status Sept 2005)", 
+                                   options=list(pay_options.keys()),
+                                   format_func=lambda x: pay_options[x])
+                
+                PAY_2 = st.selectbox("PAY_2 (Status Agustus 2005)", 
+                                   options=list(pay_options.keys()),
+                                   format_func=lambda x: pay_options[x])
+                
+                PAY_4 = st.selectbox("PAY_4 (Status Juni 2005)", 
+                                   options=list(pay_options.keys()),
+                                   format_func=lambda x: pay_options[x])
+            
+            with col2:
+                PAY_3 = st.selectbox("PAY_3 (Status Juli 2005)", 
+                                   options=list(pay_options.keys()),
+                                   format_func=lambda x: pay_options[x])
+                
+                PAY_5 = st.selectbox("PAY_5 (Status Mei 2005)", 
+                                   options=list(pay_options.keys()),
+                                   format_func=lambda x: pay_options[x])
+                
+                PAY_6 = st.selectbox("PAY_6 (Status April 2005)", 
+                                   options=list(pay_options.keys()),
+                                   format_func=lambda x: pay_options[x])
         
-        with col2:
-            MARRIAGE = st.selectbox("MARRIAGE (Status Pernikahan)", 
-                                  options=[1, 2, 3], 
-                                  format_func=lambda x: {
-                                      1: "Menikah",
-                                      2: "Lajang",
-                                      3: "Lainnya"
-                                  }[x])
+        with st.expander("💰 **3. Jumlah Tagihan (BILL_AMT)**"):
+            st.markdown("**Jumlah tagihan bulan sebelumnya (dalam $):**")
+            col1, col2 = st.columns(2)
             
-            AGE = st.slider("AGE (Usia)", 21, 79, 35)
+            with col1:
+                BILL_AMT1 = st.number_input("BILL_AMT1 (Tagihan Sept 2005)", 
+                                          min_value=-200000, 
+                                          max_value=1000000, 
+                                          value=50000, 
+                                          step=1000)
+                
+                BILL_AMT2 = st.number_input("BILL_AMT2 (Tagihan Agustus 2005)", 
+                                          min_value=-200000, 
+                                          max_value=1000000, 
+                                          value=45000, 
+                                          step=1000)
+                
+                BILL_AMT3 = st.number_input("BILL_AMT3 (Tagihan Juli 2005)", 
+                                          min_value=-200000, 
+                                          max_value=1000000, 
+                                          value=40000, 
+                                          step=1000)
             
-            PAY_0 = st.selectbox("PAY_0 (Status Pembayaran Bulan Terakhir)", 
-                               options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8],
-                               format_func=lambda x: {
-                                   -2: "Tidak ada transaksi",
-                                   -1: "Bayar penuh",
-                                   0: "Tepat waktu",
-                                   1: "Telat 1 bulan",
-                                   2: "Telat 2 bulan",
-                                   3: "Telat 3 bulan",
-                                   4: "Telat 4 bulan",
-                                   5: "Telat 5 bulan",
-                                   6: "Telat 6 bulan",
-                                   7: "Telat 7 bulan",
-                                   8: "Telat 8 bulan"
-                               }[x])
+            with col2:
+                BILL_AMT4 = st.number_input("BILL_AMT4 (Tagihan Juni 2005)", 
+                                          min_value=-200000, 
+                                          max_value=1000000, 
+                                          value=35000, 
+                                          step=1000)
+                
+                BILL_AMT5 = st.number_input("BILL_AMT5 (Tagihan Mei 2005)", 
+                                          min_value=-200000, 
+                                          max_value=1000000, 
+                                          value=30000, 
+                                          step=1000)
+                
+                BILL_AMT6 = st.number_input("BILL_AMT6 (Tagihan April 2005)", 
+                                          min_value=-200000, 
+                                          max_value=1000000, 
+                                          value=25000, 
+                                          step=1000)
         
-        with col3:
-            BILL_AMT1 = st.number_input("BILL_AMT1 (Tagihan Bulan Terakhir)", 
-                                       min_value=-200000, 
-                                       max_value=1000000, 
-                                       value=50000, 
-                                       step=1000)
+        with st.expander("💵 **4. Jumlah Pembayaran (PAY_AMT)**"):
+            st.markdown("**Jumlah pembayaran bulan sebelumnya (dalam $):**")
+            col1, col2 = st.columns(2)
             
-            PAY_AMT1 = st.number_input("PAY_AMT1 (Pembayaran Bulan Terakhir)", 
-                                      min_value=0, 
-                                      max_value=100000, 
-                                      value=5000, 
-                                      step=1000)
+            with col1:
+                PAY_AMT1 = st.number_input("PAY_AMT1 (Pembayaran Sept 2005)", 
+                                         min_value=0, 
+                                         max_value=100000, 
+                                         value=5000, 
+                                         step=1000)
+                
+                PAY_AMT2 = st.number_input("PAY_AMT2 (Pembayaran Agustus 2005)", 
+                                         min_value=0, 
+                                         max_value=100000, 
+                                         value=4500, 
+                                         step=1000)
+                
+                PAY_AMT3 = st.number_input("PAY_AMT3 (Pembayaran Juli 2005)", 
+                                         min_value=0, 
+                                         max_value=100000, 
+                                         value=4000, 
+                                         step=1000)
             
-            # Untuk demo, kita isi nilai default untuk kolom lain
-            st.info("Kolom lainnya diisi dengan nilai rata-rata dataset")
+            with col2:
+                PAY_AMT4 = st.number_input("PAY_AMT4 (Pembayaran Juni 2005)", 
+                                         min_value=0, 
+                                         max_value=100000, 
+                                         value=3500, 
+                                         step=1000)
+                
+                PAY_AMT5 = st.number_input("PAY_AMT5 (Pembayaran Mei 2005)", 
+                                         min_value=0, 
+                                         max_value=100000, 
+                                         value=3000, 
+                                         step=1000)
+                
+                PAY_AMT6 = st.number_input("PAY_AMT6 (Pembayaran April 2005)", 
+                                         min_value=0, 
+                                         max_value=100000, 
+                                         value=2500, 
+                                         step=1000)
         
         # Tombol prediksi
         if st.button("🎯 Prediksi Sekarang", type="primary", use_container_width=True):
-            # Train model (dalam kasus real, model sudah trained dan disimpan)
             with st.spinner("Melatih model dan melakukan prediksi..."):
                 try:
-                    # Train model sederhana
+                    # Train model
                     model, scaler = train_model(df)
                     
-                    # Siapkan data input
+                    # Siapkan data input LENGKAP
                     input_data = pd.DataFrame({
                         'LIMIT_BAL': [LIMIT_BAL],
                         'SEX': [SEX],
@@ -439,24 +521,29 @@ elif menu_option == "🤖 Prediksi":
                         'MARRIAGE': [MARRIAGE],
                         'AGE': [AGE],
                         'PAY_0': [PAY_0],
-                        'PAY_2': [0],  # nilai default
-                        'PAY_3': [0],
-                        'PAY_4': [0],
-                        'PAY_5': [0],
-                        'PAY_6': [0],
+                        'PAY_2': [PAY_2],
+                        'PAY_3': [PAY_3],
+                        'PAY_4': [PAY_4],
+                        'PAY_5': [PAY_5],
+                        'PAY_6': [PAY_6],
                         'BILL_AMT1': [BILL_AMT1],
-                        'BILL_AMT2': [50000],  # nilai default
-                        'BILL_AMT3': [50000],
-                        'BILL_AMT4': [50000],
-                        'BILL_AMT5': [50000],
-                        'BILL_AMT6': [50000],
+                        'BILL_AMT2': [BILL_AMT2],
+                        'BILL_AMT3': [BILL_AMT3],
+                        'BILL_AMT4': [BILL_AMT4],
+                        'BILL_AMT5': [BILL_AMT5],
+                        'BILL_AMT6': [BILL_AMT6],
                         'PAY_AMT1': [PAY_AMT1],
-                        'PAY_AMT2': [5000],  # nilai default
-                        'PAY_AMT3': [5000],
-                        'PAY_AMT4': [5000],
-                        'PAY_AMT5': [5000],
-                        'PAY_AMT6': [5000]
+                        'PAY_AMT2': [PAY_AMT2],
+                        'PAY_AMT3': [PAY_AMT3],
+                        'PAY_AMT4': [PAY_AMT4],
+                        'PAY_AMT5': [PAY_AMT5],
+                        'PAY_AMT6': [PAY_AMT6]
                     })
+                    
+                    # Tampilkan data input
+                    st.markdown("---")
+                    st.markdown("### 📋 Data Input yang Dimasukkan")
+                    st.dataframe(input_data.T.rename(columns={0: 'Nilai'}), use_container_width=True)
                     
                     # Scaling
                     input_scaled = scaler.transform(input_data)
@@ -466,7 +553,6 @@ elif menu_option == "🤖 Prediksi":
                     proba = model.predict_proba(input_scaled)[0]
                     
                     # Tampilkan hasil
-                    st.markdown("---")
                     st.markdown("### 📊 Hasil Prediksi")
                     
                     col_result1, col_result2 = st.columns(2)
@@ -476,16 +562,16 @@ elif menu_option == "🤖 Prediksi":
                         if prediction == 0:
                             st.markdown("<div class='result-success'>", unsafe_allow_html=True)
                             st.success("✅ NASABAH TIDAK DEFAULT")
-                            st.markdown("Nasabah diperkirakan akan membayar tagihan tepat waktu.")
+                            st.markdown("**Probabilitas Tidak Default:** {:.1%}".format(proba[0]))
                             st.markdown("</div>", unsafe_allow_html=True)
                         else:
                             st.markdown("<div class='result-danger'>", unsafe_allow_html=True)
                             st.error("⚠️ NASABAH BERESIKO DEFAULT")
-                            st.markdown("Nasabah beresiko tidak membayar tagihan bulan depan.")
+                            st.markdown("**Probabilitas Default:** {:.1%}".format(proba[1]))
                             st.markdown("</div>", unsafe_allow_html=True)
                     
                     with col_result2:
-                        st.markdown(f"**Probabilitas:**")
+                        st.markdown(f"**Probabilitas Detail:**")
                         
                         fig_prob, ax_prob = plt.subplots(figsize=(8, 4))
                         classes = ['Tidak Default', 'Default']
@@ -509,27 +595,49 @@ elif menu_option == "🤖 Prediksi":
                     if prediction == 0:
                         st.info("""
                         **Rekomendasi untuk nasabah ini:**
-                        - Pertahankan limit kredit saat ini
-                        - Tawarkan program loyalitas
-                        - Bisa dipertimbangkan untuk increase limit
+                        - ✅ Nasabah menunjukkan profil pembayaran yang sehat
+                        - ✅ Pertahankan limit kredit saat ini
+                        - ✅ Tawarkan program loyalitas atau rewards
+                        - ✅ Pertimbangkan untuk meningkatkan limit kredit
+                        - ✅ Monitor berkala untuk deteksi dini perubahan perilaku
                         """)
                     else:
                         st.warning("""
                         **Rekomendasi untuk nasabah ini:**
-                        - Monitor pembayaran secara ketat
-                        - Pertimbangkan penurunan limit kredit
-                        - Tawarkan restrukturisasi utang jika perlu
-                        - Hubungi nasabah untuk konfirmasi pembayaran
+                        - ⚠️ Tingkatkan monitoring pembayaran
+                        - ⚠️ Pertimbangkan penurunan limit kredit
+                        - ⚠️ Hubungi nasabah untuk konfirmasi pembayaran
+                        - ⚠️ Tawarkan opsi restrukturisasi utang jika perlu
+                        - ⚠️ Flag nasabah untuk review lebih mendalam
+                        - ⚠️ Pertimbangkan biaya keterlambatan yang lebih tinggi
                         """)
+                    
+                    # Feature Importance
+                    st.markdown("### 🔍 Kontribusi Fitur (Top 10)")
+                    
+                    # Get feature importance
+                    feature_importance = pd.DataFrame({
+                        'feature': df.drop('default_payment', axis=1).columns,
+                        'importance': model.feature_importances_
+                    }).sort_values('importance', ascending=False).head(10)
+                    
+                    fig_imp, ax_imp = plt.subplots(figsize=(10, 6))
+                    bars_imp = ax_imp.barh(feature_importance['feature'], 
+                                          feature_importance['importance'],
+                                          color='#3B82F6')
+                    ax_imp.set_xlabel('Importance Score')
+                    ax_imp.set_title('Top 10 Fitur Paling Penting')
+                    ax_imp.invert_yaxis()
+                    
+                    for bar in bars_imp:
+                        width = bar.get_width()
+                        ax_imp.text(width + 0.001, bar.get_y() + bar.get_height()/2,
+                                  f'{width:.3f}', va='center')
+                    
+                    st.pyplot(fig_imp)
                 
                 except Exception as e:
                     st.error(f"Terjadi error: {str(e)}")
-                    st.info("""
-                    **Untuk demo lengkap:**
-                    1. Pastikan semua library terinstall
-                    2. Model akan dilatih menggunakan RandomForest
-                    3. Hasil prediksi berdasarkan data sample
-                    """)
     
     with tab2:
         st.markdown("**Upload file CSV untuk prediksi batch:**")
@@ -538,66 +646,63 @@ elif menu_option == "🤖 Prediksi":
         
         if uploaded_file is not None:
             try:
-                # Baca file
                 batch_data = pd.read_csv(uploaded_file)
                 st.success(f"File berhasil diupload! {len(batch_data)} records ditemukan.")
                 
-                # Tampilkan preview
-                st.dataframe(batch_data.head(), use_container_width=True)
+                # Cek kolom
+                required_cols = list(df.drop('default_payment', axis=1).columns)
+                missing_cols = set(required_cols) - set(batch_data.columns)
                 
-                if st.button("🔮 Prediksi Batch", use_container_width=True):
-                    with st.spinner("Memproses prediksi batch..."):
-                        # Train model
-                        model, scaler = train_model(df)
-                        
-                        # Pastikan kolom sesuai
-                        missing_cols = set(df.columns) - set(batch_data.columns) - {'default_payment'}
-                        if missing_cols:
-                            st.warning(f"Kolom berikut tidak ditemukan: {missing_cols}")
-                            for col in missing_cols:
-                                batch_data[col] = df[col].mean()  # Isi dengan nilai rata-rata
-                        
-                        # Urutkan kolom
-                        batch_data = batch_data[df.drop('default_payment', axis=1).columns]
-                        
-                        # Scaling dan prediksi
-                        batch_scaled = scaler.transform(batch_data)
-                        predictions = model.predict(batch_scaled)
-                        probabilities = model.predict_proba(batch_scaled)
-                        
-                        # Tambah hasil ke dataframe
-                        batch_data['PREDICTION'] = predictions
-                        batch_data['PROBABILITY_DEFAULT'] = probabilities[:, 1]
-                        batch_data['PREDICTION_LABEL'] = batch_data['PREDICTION'].map(
-                            {0: 'TIDAK DEFAULT', 1: 'DEFAULT'}
-                        )
-                        
-                        # Tampilkan hasil
-                        st.markdown("### 📋 Hasil Prediksi Batch")
-                        st.dataframe(batch_data[['PREDICTION_LABEL', 'PROBABILITY_DEFAULT']].head(10), 
-                                   use_container_width=True)
-                        
-                        # Statistik hasil
-                        default_count = (predictions == 1).sum()
-                        default_percentage = (default_count / len(predictions)) * 100
-                        
-                        col_stat1, col_stat2, col_stat3 = st.columns(3)
-                        with col_stat1:
-                            st.metric("Total Prediksi", len(predictions))
-                        with col_stat2:
-                            st.metric("Prediksi Default", default_count)
-                        with col_stat3:
-                            st.metric("Persentase Default", f"{default_percentage:.1f}%")
-                        
-                        # Download hasil
-                        csv = batch_data.to_csv(index=False)
-                        st.download_button(
-                            label="📥 Download Hasil Prediksi",
-                            data=csv,
-                            file_name="hasil_prediksi_batch.csv",
-                            mime="text/csv",
-                            use_container_width=True
-                        )
+                if missing_cols:
+                    st.error(f"File CSV harus memiliki semua kolom berikut: {missing_cols}")
+                else:
+                    st.dataframe(batch_data.head(), use_container_width=True)
+                    
+                    if st.button("🔮 Prediksi Batch", use_container_width=True):
+                        with st.spinner("Memproses prediksi batch..."):
+                            model, scaler = train_model(df)
+                            
+                            # Urutkan kolom
+                            batch_data = batch_data[required_cols]
+                            
+                            # Scaling dan prediksi
+                            batch_scaled = scaler.transform(batch_data)
+                            predictions = model.predict(batch_scaled)
+                            probabilities = model.predict_proba(batch_scaled)
+                            
+                            # Tambah hasil ke dataframe
+                            batch_data['PREDICTION'] = predictions
+                            batch_data['PROBABILITY_DEFAULT'] = probabilities[:, 1]
+                            batch_data['PREDICTION_LABEL'] = batch_data['PREDICTION'].map(
+                                {0: 'TIDAK DEFAULT', 1: 'DEFAULT'}
+                            )
+                            
+                            # Tampilkan hasil
+                            st.markdown("### 📋 Hasil Prediksi Batch")
+                            st.dataframe(batch_data[['PREDICTION_LABEL', 'PROBABILITY_DEFAULT']].head(10), 
+                                       use_container_width=True)
+                            
+                            # Statistik hasil
+                            default_count = (predictions == 1).sum()
+                            default_percentage = (default_count / len(predictions)) * 100
+                            
+                            col_stat1, col_stat2, col_stat3 = st.columns(3)
+                            with col_stat1:
+                                st.metric("Total Prediksi", len(predictions))
+                            with col_stat2:
+                                st.metric("Prediksi Default", default_count)
+                            with col_stat3:
+                                st.metric("Persentase Default", f"{default_percentage:.1f}%")
+                            
+                            # Download hasil
+                            csv = batch_data.to_csv(index=False)
+                            st.download_button(
+                                label="📥 Download Hasil Prediksi",
+                                data=csv,
+                                file_name="hasil_prediksi_batch.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
             
             except Exception as e:
                 st.error(f"Error membaca file: {str(e)}")
@@ -618,7 +723,6 @@ else:
     
     st.markdown("### 📊 Struktur Dataset")
     
-    # Tabel deskripsi kolom
     kolom_info = pd.DataFrame({
         'Kolom': ['LIMIT_BAL', 'SEX', 'EDUCATION', 'MARRIAGE', 'AGE', 
                  'PAY_0 - PAY_6', 'BILL_AMT1 - BILL_AMT6', 
@@ -640,46 +744,6 @@ else:
     
     st.dataframe(kolom_info, use_container_width=True, hide_index=True)
     
-    st.markdown("### 📈 Karakteristik Dataset")
-    
-    col_char1, col_char2 = st.columns(2)
-    
-    with col_char1:
-        st.markdown("**Statistik Umum:**")
-        st.text(f"• Jumlah data: {len(df):,} records")
-        st.text(f"• Jumlah fitur: {len(df.columns)}")
-        st.text(f"• Data period: April - September 2005")
-        st.text(f"• Target variable: Binary classification")
-    
-    with col_char2:
-        st.markdown("**Distribusi Target:**")
-        default_count = df['default_payment'].value_counts()
-        st.text(f"• Tidak Default (0): {default_count[0]:,} ({default_count[0]/len(df)*100:.1f}%)")
-        st.text(f"• Default (1): {default_count[1]:,} ({default_count[1]/len(df)*100:.1f}%)")
-        st.text(f"• Imbalance ratio: {default_count[1]/default_count[0]:.2f}")
-    
-    st.markdown("### 🔍 Preprocessing yang Dilakukan")
-    
-    preprocessing_steps = [
-        "1. **Data Loading**: Membaca data dari file CSV",
-        "2. **Data Cleaning**: Menghapus kolom ID yang tidak relevan",
-        "3. **Missing Values**: Tidak ada missing values dalam dataset",
-        "4. **Duplikat**: Ditemukan dan dihapus 35 records duplikat",
-        "5. **Feature Engineering**: Menggunakan semua fitur asli",
-        "6. **Scaling**: StandardScaler untuk fitur numerik",
-        "7. **Class Imbalance**: Dataset imbalance (22% default)"
-    ]
-    
-    for step in preprocessing_steps:
-        st.markdown(step)
-    
-    st.markdown("### 📚 Referensi")
-    st.markdown("""
-    - **Sumber**: [UCI Machine Learning Repository - Default of Credit Card Clients Dataset](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients)
-    - **Penelitian Asli**: Yeh, I. C., & Lien, C. H. (2009). The comparisons of data mining techniques for the predictive accuracy of probability of default of credit card clients. Expert Systems with Applications, 36(2), 2473-2480.
-    - **Lisensi**: CC BY 4.0
-    """)
-    
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Footer
@@ -687,8 +751,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666;'>
-        <p>Dikembangkan oleh Tim Machine Learning | Dataset: UCI Machine Learning Repository</p>
-        <p>© 2024 Credit Card Default Prediction System</p>
+        <p>© 2024 Credit Card Default Prediction System | Dataset: UCI Machine Learning Repository</p>
     </div>
     """,
     unsafe_allow_html=True
