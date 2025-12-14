@@ -5,14 +5,6 @@ import pickle
 import warnings
 warnings.filterwarnings('ignore')
 
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from imblearn.over_sampling import SMOTE
-from feature_engine.outliers import Winsorizer
-import plotly.graph_objects as go
-
 # Set page config
 st.set_page_config(
     page_title="Credit Card Default Prediction",
@@ -20,344 +12,417 @@ st.set_page_config(
     layout="wide"
 )
 
-# Title
+# Title and description
 st.title("💳 Credit Card Default Prediction System")
-
-# Sidebar for model training
-st.sidebar.header("Model Configuration")
-
-@st.cache_resource
-def train_model():
-    """Train the machine learning model"""
-    try:
-        # Try to load existing model
-        with open('model.pkl', 'rb') as f:
-            model_data = pickle.load(f)
-        
-        st.sidebar.success("✅ Pre-trained model loaded")
-        return model_data
-    except:
-        st.sidebar.info("Training new model...")
-        
-        # Load data
-        df = pd.read_excel('default_of_credit_card_clients.xlsx', header=1)
-        df.drop(columns=['ID'], inplace=True)
-        df.drop_duplicates(inplace=True)
-        
-        # Features and target
-        X = df.drop(columns=['default payment next month'])
-        y = df['default payment next month']
-        
-        # Define columns
-        numerical_columns = ['LIMIT_BAL', 'AGE', 'BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 
-                            'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6', 'PAY_AMT1', 'PAY_AMT2', 
-                            'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
-        
-        # Preprocessing
-        winsorizer = Winsorizer(capping_method='iqr', tail='both', fold=1.5, variables=numerical_columns)
-        X[numerical_columns] = winsorizer.fit_transform(X[numerical_columns])
-        
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        
-        # Handle imbalance
-        smote = SMOTE(random_state=42)
-        X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
-        
-        # Scale features
-        scaler = MinMaxScaler()
-        X_train_resampled[numerical_columns] = scaler.fit_transform(X_train_resampled[numerical_columns])
-        X_test[numerical_columns] = scaler.transform(X_test[numerical_columns])
-        
-        # Train model
-        model = RandomForestClassifier(
-            n_estimators=200,
-            max_depth=15,
-            min_samples_split=5,
-            min_samples_leaf=2,
-            random_state=42,
-            n_jobs=-1,
-            class_weight='balanced'
-        )
-        
-        model.fit(X_train_resampled, y_train_resampled)
-        
-        # Evaluate
-        y_pred = model.predict(X_test)
-        accuracy = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred)
-        recall = recall_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
-        
-        # Save model data
-        model_data = {
-            'model': model,
-            'preprocessing': {
-                'winsorizer': winsorizer,
-                'scaler': scaler,
-                'numerical_columns': numerical_columns
-            },
-            'feature_names': list(X.columns),
-            'training_stats': {
-                'accuracy': f"{accuracy:.4f}",
-                'precision': f"{precision:.4f}",
-                'recall': f"{recall:.4f}",
-                'f1': f"{f1:.4f}"
-            }
-        }
-        
-        # Save to file
-        with open('model.pkl', 'wb') as f:
-            pickle.dump(model_data, f)
-        
-        st.sidebar.success("✅ Model trained and saved")
-        return model_data
-
-# Load or train model
-model_data = train_model()
-model = model_data['model']
-preprocessing = model_data['preprocessing']
-feature_names = model_data['feature_names']
-training_stats = model_data['training_stats']
-
-# Main app
 st.markdown("""
-### Predict whether a credit card client will default on their payment next month
+This application predicts whether a credit card client will default on their payment next month.
 Please fill in all the client information below for an accurate prediction.
 """)
 
-# Input section
-col1, col2 = st.columns(2)
+# Load trained model and preprocessing objects
+@st.cache_resource
+def load_model():
+    """Load the trained model and preprocessing objects"""
+    try:
+        # Load model
+        with open('random_forest_model.pkl', 'rb') as f:
+            model = pickle.load(f)
+        
+        # Load preprocessing objects
+        with open('preprocessing.pkl', 'rb') as f:
+            preprocessing = pickle.load(f)
+        
+        # Load feature names
+        with open('feature_names.pkl', 'rb') as f:
+            feature_names = pickle.load(f)
+        
+        # Load training data stats
+        with open('training_stats.pkl', 'rb') as f:
+            training_stats = pickle.load(f)
+        
+        return model, preprocessing, feature_names, training_stats
+    except:
+        st.error("Model files not found. Please ensure all model files are in the same directory.")
+        st.stop()
 
-with col1:
-    st.subheader("Demographic Information")
-    
-    LIMIT_BAL = st.number_input(
-        "Credit Limit (NT$)", 
-        min_value=0, 
-        max_value=1000000, 
-        value=150000,
-        help="Total amount of credit given to the client"
-    )
-    
-    SEX = st.selectbox(
-        "Gender", 
-        options=[1, 2], 
-        format_func=lambda x: "Male" if x == 1 else "Female",
-        index=1
-    )
-    
-    EDUCATION = st.selectbox(
-        "Education Level", 
-        options=[1, 2, 3, 4, 5, 6, 0], 
-        format_func=lambda x: {
-            1: "Graduate School",
-            2: "University",
-            3: "High School",
-            4: "Others",
-            5: "Unknown",
-            6: "Unknown",
-            0: "Unknown"
-        }[x],
-        index=1
-    )
-    
-    MARRIAGE = st.selectbox(
-        "Marital Status", 
-        options=[1, 2, 3, 0], 
-        format_func=lambda x: {
-            1: "Married",
-            2: "Single",
-            3: "Others",
-            0: "Unknown"
-        }[x],
-        index=1
-    )
-    
-    AGE = st.number_input(
-        "Age (Years)", 
-        min_value=21, 
-        max_value=79, 
-        value=35
-    )
+# Load model and preprocessing
+model, preprocessing, feature_names, training_stats = load_model()
 
-with col2:
-    st.subheader("Recent Payment Status")
-    st.markdown("""
-    **Status Codes:**
-    - -2: No consumption
-    - -1: Paid in full
-    - 0: Use of revolving credit
-    - 1-8: Months of payment delay
-    """)
-    
-    PAY_0 = st.selectbox("September 2005", options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8], index=2)
-    PAY_2 = st.selectbox("August 2005", options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8], index=2)
-    PAY_3 = st.selectbox("July 2005", options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8], index=2)
-    PAY_4 = st.selectbox("June 2005", options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8], index=2)
-    PAY_5 = st.selectbox("May 2005", options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8], index=2)
-    PAY_6 = st.selectbox("April 2005", options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8], index=2)
+# Create sidebar for input
+st.sidebar.header("📋 Client Information")
 
-# Bill amounts
-st.subheader("Bill Statement Amounts (NT$)")
-bill_cols = st.columns(6)
-bill_values = []
-bill_labels = ['Sept 2005', 'Aug 2005', 'July 2005', 'June 2005', 'May 2005', 'Apr 2005']
-bill_defaults = [50000, 48000, 46000, 43000, 40000, 38000]
-
-for i, col in enumerate(bill_cols):
-    with col:
-        value = st.number_input(
-            bill_labels[i],
-            min_value=-500000,
-            max_value=2000000,
-            value=bill_defaults[i],
-            key=f"bill_{i}"
-        )
-        bill_values.append(value)
-
-BILL_AMT1, BILL_AMT2, BILL_AMT3, BILL_AMT4, BILL_AMT5, BILL_AMT6 = bill_values
-
-# Payment amounts
-st.subheader("Previous Payment Amounts (NT$)")
-pay_amt_cols = st.columns(6)
-pay_amt_values = []
-pay_amt_labels = ['Sept 2005', 'Aug 2005', 'July 2005', 'June 2005', 'May 2005', 'Apr 2005']
-
-for i, col in enumerate(pay_amt_cols):
-    with col:
-        value = st.number_input(
-            pay_amt_labels[i],
-            min_value=0,
-            max_value=2000000,
-            value=5000,
-            key=f"pay_amt_{i}"
-        )
-        pay_amt_values.append(value)
-
-PAY_AMT1, PAY_AMT2, PAY_AMT3, PAY_AMT4, PAY_AMT5, PAY_AMT6 = pay_amt_values
-
-# Prediction button
-if st.button("🚀 Predict Default Risk", type="primary", use_container_width=True):
-    # Prepare input data
-    input_dict = {
-        'LIMIT_BAL': LIMIT_BAL,
-        'SEX': SEX,
-        'EDUCATION': EDUCATION,
-        'MARRIAGE': MARRIAGE,
-        'AGE': AGE,
-        'PAY_0': PAY_0,
-        'PAY_2': PAY_2,
-        'PAY_3': PAY_3,
-        'PAY_4': PAY_4,
-        'PAY_5': PAY_5,
-        'PAY_6': PAY_6,
-        'BILL_AMT1': BILL_AMT1,
-        'BILL_AMT2': BILL_AMT2,
-        'BILL_AMT3': BILL_AMT3,
-        'BILL_AMT4': BILL_AMT4,
-        'BILL_AMT5': BILL_AMT5,
-        'BILL_AMT6': BILL_AMT6,
-        'PAY_AMT1': PAY_AMT1,
-        'PAY_AMT2': PAY_AMT2,
-        'PAY_AMT3': PAY_AMT3,
-        'PAY_AMT4': PAY_AMT4,
-        'PAY_AMT5': PAY_AMT5,
-        'PAY_AMT6': PAY_AMT6
-    }
+# Function to create input fields
+def create_input_fields():
+    inputs = {}
     
-    # Convert to DataFrame
-    input_df = pd.DataFrame([input_dict])
-    input_df = input_df[feature_names]
+    # Demographics Section
+    st.sidebar.subheader("Demographic Information")
     
-    # Preprocess
-    numerical_columns = preprocessing['numerical_columns']
-    winsorizer = preprocessing['winsorizer']
-    scaler = preprocessing['scaler']
-    
-    # Handle outliers
-    input_df[numerical_columns] = winsorizer.transform(input_df[numerical_columns])
-    
-    # Scale numerical features
-    input_df[numerical_columns] = scaler.transform(input_df[numerical_columns])
-    
-    # Make prediction
-    prediction = model.predict(input_df)[0]
-    probabilities = model.predict_proba(input_df)[0]
-    
-    # Display results
-    st.markdown("---")
-    col1, col2 = st.columns(2)
+    col1, col2 = st.sidebar.columns(2)
     
     with col1:
-        if prediction == 1:
-            st.error("⚠️ **HIGH RISK: Client likely to DEFAULT**")
-        else:
-            st.success("✅ **LOW RISK: Client likely to PAY**")
+        inputs['LIMIT_BAL'] = st.number_input(
+            "Credit Limit (NT$)", 
+            min_value=0, 
+            max_value=1000000, 
+            value=150000,
+            help="Total amount of credit given to the client"
+        )
         
-        st.metric(
-            label="Default Probability", 
-            value=f"{probabilities[1]*100:.1f}%",
-            delta="High Risk" if prediction == 1 else "Low Risk",
-            delta_color="inverse" if prediction == 0 else "normal"
+        inputs['SEX'] = st.selectbox(
+            "Gender", 
+            options=[1, 2], 
+            format_func=lambda x: "Male" if x == 1 else "Female",
+            index=1
+        )
+        
+        inputs['EDUCATION'] = st.selectbox(
+            "Education Level", 
+            options=[1, 2, 3, 4, 5, 6, 0], 
+            format_func=lambda x: {
+                1: "Graduate School",
+                2: "University",
+                3: "High School",
+                4: "Others",
+                5: "Unknown",
+                6: "Unknown",
+                0: "Unknown"
+            }[x],
+            index=1
         )
     
     with col2:
-        # Probability visualization
-        fig = go.Figure(data=[
-            go.Bar(
-                x=['Pay', 'Default'],
-                y=[probabilities[0], probabilities[1]],
-                marker_color=['green', 'red'],
-                text=[f'{probabilities[0]*100:.1f}%', f'{probabilities[1]*100:.1f}%'],
-                textposition='auto',
-            )
-        ])
-        
-        fig.update_layout(
-            title="Prediction Probabilities",
-            yaxis_title="Probability",
-            yaxis_range=[0, 1],
-            template="plotly_white",
-            height=300
+        inputs['MARRIAGE'] = st.selectbox(
+            "Marital Status", 
+            options=[1, 2, 3, 0], 
+            format_func=lambda x: {
+                1: "Married",
+                2: "Single",
+                3: "Others",
+                0: "Unknown"
+            }[x],
+            index=1
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        inputs['AGE'] = st.number_input(
+            "Age (Years)", 
+            min_value=21, 
+            max_value=79, 
+            value=35
+        )
     
-    # Recommendations
-    st.subheader("📋 Recommendations")
-    if prediction == 1:
-        st.warning("""
-        **Consider these actions:**
-        1. Increase monitoring frequency
-        2. Consider credit limit reduction
-        3. Schedule payment reminder calls
-        4. Require additional collateral
-        5. Offer payment restructuring options
-        """)
+    # Payment History Section
+    st.sidebar.subheader("Payment History (Last 6 Months)")
+    st.sidebar.markdown("""
+    **Payment Status Codes:**
+    - -2: No consumption
+    - -1: Paid in full
+    - 0: Use of revolving credit
+    - 1: Payment delay for 1 month
+    - 2: Payment delay for 2 months
+    - ... up to 8 months delay
+    """)
+    
+    pay_cols = ['PAY_0', 'PAY_2', 'PAY_3', 'PAY_4', 'PAY_5', 'PAY_6']
+    pay_labels = [
+        "September 2005", 
+        "August 2005", 
+        "July 2005", 
+        "June 2005", 
+        "May 2005", 
+        "April 2005"
+    ]
+    
+    for i, (col, label) in enumerate(zip(pay_cols, pay_labels)):
+        cols = st.sidebar.columns(2)
+        col_idx = i % 2
+        with cols[col_idx]:
+            inputs[col] = st.selectbox(
+                f"{label}", 
+                options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8],
+                index=2,  # Default to 0 (revolving credit)
+                key=col
+            )
+    
+    # Bill Amount Section
+    st.sidebar.subheader("Bill Statements (NT$)")
+    st.sidebar.markdown("Amount of bill statement for each month")
+    
+    bill_cols = ['BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6']
+    bill_labels = [
+        "September 2005",
+        "August 2005",
+        "July 2005",
+        "June 2005",
+        "May 2005",
+        "April 2005"
+    ]
+    
+    for i, (col, label) in enumerate(zip(bill_cols, bill_labels)):
+        cols = st.sidebar.columns(2)
+        col_idx = i % 2
+        with cols[col_idx]:
+            inputs[col] = st.number_input(
+                f"{label}",
+                min_value=-500000,
+                max_value=2000000,
+                value=50000 if i < 3 else 40000,
+                key=col
+            )
+    
+    # Payment Amount Section
+    st.sidebar.subheader("Previous Payments (NT$)")
+    st.sidebar.markdown("Amount of previous payment for each month")
+    
+    pay_amt_cols = ['PAY_AMT1', 'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
+    pay_amt_labels = [
+        "September 2005",
+        "August 2005",
+        "July 2005",
+        "June 2005",
+        "May 2005",
+        "April 2005"
+    ]
+    
+    for i, (col, label) in enumerate(zip(pay_amt_cols, pay_amt_labels)):
+        cols = st.sidebar.columns(2)
+        col_idx = i % 2
+        with cols[col_idx]:
+            inputs[col] = st.number_input(
+                f"{label}",
+                min_value=0,
+                max_value=2000000,
+                value=5000,
+                key=col
+            )
+    
+    return inputs
+
+# Create input fields
+input_data = create_input_fields()
+
+# Main content area
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.subheader("📊 Input Summary")
+    
+    # Create DataFrame for display
+    display_df = pd.DataFrame({
+        'Feature': list(input_data.keys()),
+        'Value': list(input_data.values())
+    })
+    
+    # Categorize features for better display
+    demographic_features = ['LIMIT_BAL', 'SEX', 'EDUCATION', 'MARRIAGE', 'AGE']
+    payment_history = ['PAY_0', 'PAY_2', 'PAY_3', 'PAY_4', 'PAY_5', 'PAY_6']
+    bill_amounts = ['BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6']
+    payment_amounts = ['PAY_AMT1', 'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
+    
+    # Display in tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["Demographics", "Payment History", "Bill Amounts", "Payment Amounts"])
+    
+    with tab1:
+        demo_df = display_df[display_df['Feature'].isin(demographic_features)].copy()
+        # Format values for display
+        demo_df.loc[demo_df['Feature'] == 'SEX', 'Value'] = demo_df.loc[demo_df['Feature'] == 'SEX', 'Value'].map({1: 'Male', 2: 'Female'})
+        demo_df.loc[demo_df['Feature'] == 'EDUCATION', 'Value'] = demo_df.loc[demo_df['Feature'] == 'EDUCATION', 'Value'].map({
+            1: 'Graduate School', 2: 'University', 3: 'High School', 
+            4: 'Others', 5: 'Unknown', 6: 'Unknown', 0: 'Unknown'
+        })
+        demo_df.loc[demo_df['Feature'] == 'MARRIAGE', 'Value'] = demo_df.loc[demo_df['Feature'] == 'MARRIAGE', 'Value'].map({
+            1: 'Married', 2: 'Single', 3: 'Others', 0: 'Unknown'
+        })
+        st.dataframe(demo_df.set_index('Feature'), use_container_width=True)
+    
+    with tab2:
+        pay_df = display_df[display_df['Feature'].isin(payment_history)].copy()
+        # Update labels for months
+        month_labels = {
+            'PAY_0': 'September 2005',
+            'PAY_2': 'August 2005',
+            'PAY_3': 'July 2005',
+            'PAY_4': 'June 2005',
+            'PAY_5': 'May 2005',
+            'PAY_6': 'April 2005'
+        }
+        pay_df['Month'] = pay_df['Feature'].map(month_labels)
+        pay_df = pay_df[['Month', 'Value']].set_index('Month')
+        st.dataframe(pay_df, use_container_width=True)
+    
+    with tab3:
+        bill_df = display_df[display_df['Feature'].isin(bill_amounts)].copy()
+        bill_df['Month'] = bill_df['Feature'].map({
+            'BILL_AMT1': 'September 2005',
+            'BILL_AMT2': 'August 2005',
+            'BILL_AMT3': 'July 2005',
+            'BILL_AMT4': 'June 2005',
+            'BILL_AMT5': 'May 2005',
+            'BILL_AMT6': 'April 2005'
+        })
+        bill_df = bill_df[['Month', 'Value']]
+        bill_df['Value'] = bill_df['Value'].apply(lambda x: f"NT$ {x:,}")
+        st.dataframe(bill_df.set_index('Month'), use_container_width=True)
+    
+    with tab4:
+        pay_amt_df = display_df[display_df['Feature'].isin(payment_amounts)].copy()
+        pay_amt_df['Month'] = pay_amt_df['Feature'].map({
+            'PAY_AMT1': 'September 2005',
+            'PAY_AMT2': 'August 2005',
+            'PAY_AMT3': 'July 2005',
+            'PAY_AMT4': 'June 2005',
+            'PAY_AMT5': 'May 2005',
+            'PAY_AMT6': 'April 2005'
+        })
+        pay_amt_df = pay_amt_df[['Month', 'Value']]
+        pay_amt_df['Value'] = pay_amt_df['Value'].apply(lambda x: f"NT$ {x:,}")
+        st.dataframe(pay_amt_df.set_index('Month'), use_container_width=True)
+
+with col2:
+    st.subheader("🤖 Model Prediction")
+    
+    # Create a button for prediction
+    if st.button("🚀 Predict Default Risk", type="primary", use_container_width=True):
+        with st.spinner("Analyzing client data..."):
+            # Convert input data to DataFrame
+            input_df = pd.DataFrame([input_data])
+            
+            # Ensure correct column order
+            input_df = input_df[feature_names]
+            
+            # Make prediction
+            try:
+                # Preprocess the input
+                input_processed = preprocessing.transform(input_df)
+                
+                # Get prediction and probabilities
+                prediction = model.predict(input_processed)[0]
+                probabilities = model.predict_proba(input_processed)[0]
+                
+                # Display results
+                st.markdown("---")
+                
+                if prediction == 1:
+                    st.error("⚠️ **HIGH RISK: Client likely to DEFAULT**")
+                    st.metric(
+                        label="Default Probability", 
+                        value=f"{probabilities[1]*100:.1f}%",
+                        delta="High Risk"
+                    )
+                    
+                    # Show warning signs
+                    with st.expander("⚠️ Risk Factors Detected"):
+                        st.markdown("""
+                        Based on the input data, the following factors may contribute to the high risk:
+                        - High credit utilization
+                        - Late payment history
+                        - Large outstanding balances
+                        - Insufficient recent payments
+                        """)
+                else:
+                    st.success("✅ **LOW RISK: Client likely to PAY**")
+                    st.metric(
+                        label="Default Probability", 
+                        value=f"{probabilities[1]*100:.1f}%",
+                        delta="Low Risk",
+                        delta_color="inverse"
+                    )
+                    
+                    # Show positive factors
+                    with st.expander("✅ Positive Factors"):
+                        st.markdown("""
+                        The client shows several positive indicators:
+                        - Good payment history
+                        - Reasonable credit utilization
+                        - Consistent payments
+                        - Manageable debt levels
+                        """)
+                
+                # Show probability breakdown
+                st.markdown("---")
+                st.subheader("Probability Breakdown")
+                
+                prob_col1, prob_col2 = st.columns(2)
+                with prob_col1:
+                    st.metric(
+                        label="Probability of PAYING",
+                        value=f"{probabilities[0]*100:.1f}%",
+                        delta="Safe"
+                    )
+                
+                with prob_col2:
+                    st.metric(
+                        label="Probability of DEFAULTING",
+                        value=f"{probabilities[1]*100:.1f}%",
+                        delta="Risk"
+                    )
+                
+                # Visualization of probabilities
+                import plotly.graph_objects as go
+                
+                fig = go.Figure(data=[
+                    go.Bar(
+                        x=['Pay', 'Default'],
+                        y=[probabilities[0], probabilities[1]],
+                        marker_color=['green', 'red'],
+                        text=[f'{probabilities[0]*100:.1f}%', f'{probabilities[1]*100:.1f}%'],
+                        textposition='auto',
+                    )
+                ])
+                
+                fig.update_layout(
+                    title="Prediction Probabilities",
+                    yaxis_title="Probability",
+                    yaxis_range=[0, 1],
+                    template="plotly_white"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Recommendation based on prediction
+                st.markdown("---")
+                st.subheader("📋 Recommendation")
+                
+                if prediction == 1:
+                    st.warning("""
+                    **Recommended Actions:**
+                    1. Increase monitoring frequency
+                    2. Consider credit limit reduction
+                    3. Schedule payment reminder calls
+                    4. Require additional collateral
+                    5. Offer payment restructuring options
+                    """)
+                else:
+                    st.info("""
+                    **Recommended Actions:**
+                    1. Continue normal monitoring
+                    2. Consider credit limit increase (if requested)
+                    3. Maintain regular communication
+                    4. Offer loyalty benefits
+                    5. Regular account review
+                    """)
+                    
+            except Exception as e:
+                st.error(f"Error in prediction: {str(e)}")
+    
     else:
-        st.info("""
-        **Recommended actions:**
-        1. Continue normal monitoring
-        2. Consider credit limit increase (if requested)
-        3. Maintain regular communication
-        4. Offer loyalty benefits
-        5. Regular account review
+        st.info("👈 Fill in all client information on the left sidebar and click the 'Predict Default Risk' button to get a prediction.")
+    
+    # Model information
+    with st.expander("ℹ️ Model Information"):
+        st.markdown(f"""
+        **Model Type:** Random Forest Classifier
+        **Training Accuracy:** {training_stats.get('accuracy', 'N/A')}
+        **Precision:** {training_stats.get('precision', 'N/A')}
+        **Recall:** {training_stats.get('recall', 'N/A')}
+        **F1-Score:** {training_stats.get('f1', 'N/A')}
+        
+        **Dataset:** Default of Credit Card Clients
+        **Samples:** 30,000 clients
+        **Features:** 23 variables
+        
+        *Model trained on historical payment data from a large bank in Taiwan.*
         """)
-
-# Model info in sidebar
-st.sidebar.markdown("---")
-st.sidebar.subheader("Model Information")
-st.sidebar.markdown(f"""
-**Model Type:** Random Forest Classifier
-**Accuracy:** {training_stats['accuracy']}
-**Precision:** {training_stats['precision']}
-**Recall:** {training_stats['recall']}
-**F1-Score:** {training_stats['f1']}
-
-**Features:** 23 variables
-**Training Data:** 30,000 clients
-""")
 
 # Footer
 st.markdown("---")
@@ -368,21 +433,17 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Add CSS
+# Add some CSS for better appearance
 st.markdown("""
 <style>
     .stButton button {
         width: 100%;
         height: 3em;
-        font-size: 1.2em;
     }
     .stMetric {
         background-color: #f0f2f6;
-        padding: 15px;
+        padding: 10px;
         border-radius: 10px;
-    }
-    .css-1d391kg {
-        padding-top: 1.5rem;
     }
 </style>
 """, unsafe_allow_html=True)
