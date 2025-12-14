@@ -13,7 +13,7 @@ from feature_engine.outliers import Winsorizer
 
 # train_model.py
 # Load data
-df = pd.read_excel('default_of_credit_card_clients.xlsx', header=1)
+df = pd.read_excel('default_of_credit_card_clients.csv', header=1)
 df.drop(columns=['ID'], inplace=True)
 
 # Remove duplicates
