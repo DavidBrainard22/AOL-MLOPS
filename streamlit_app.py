@@ -391,7 +391,7 @@ elif menu_option == "🤖 Prediksi":
             
             AGE = st.slider("AGE (Usia)", 21, 79, 35)
             
-            PAY_0 = st.selectbox("PAY_0 (Status Pembayaran Sept 2005)", 
+            PAY_0 = st.selectbox("PAY_0 (Status Pembayaran Bulan Sept)", 
                                options=[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8],
                                format_func=lambda x: {
                                    -2: "Tidak ada transaksi",
@@ -408,13 +408,13 @@ elif menu_option == "🤖 Prediksi":
                                }[x])
         
         with col3:
-            BILL_AMT1 = st.number_input("BILL_AMT1 (Tagihan Sept 2005)", 
+            BILL_AMT1 = st.number_input("BILL_AMT1 (Tagihan Bulan Sept)", 
                                        min_value=-200000, 
                                        max_value=1000000, 
                                        value=50000, 
                                        step=1000)
             
-            PAY_AMT1 = st.number_input("PAY_AMT1 (Pembayaran Sept 2005)", 
+            PAY_AMT1 = st.number_input("PAY_AMT1 (Pembayaran Bulan Sept)", 
                                       min_value=0, 
                                       max_value=100000, 
                                       value=5000, 
