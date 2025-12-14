@@ -4,6 +4,104 @@ import numpy as np
 import pickle
 import warnings
 warnings.filterwarnings('ignore')
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from imblearn.over_sampling import SMOTE
+from feature_engine.outliers import Winsorizer
+
+# train_model.py
+# Load data
+df = pd.read_excel('default_of_credit_card_clients.xlsx', header=1)
+df.drop(columns=['ID'], inplace=True)
+
+# Remove duplicates
+df.drop_duplicates(inplace=True)
+
+# Define features and target
+X = df.drop(columns=['default payment next month'])
+y = df['default payment next month']
+
+# Define numerical and categorical columns
+numerical_columns = ['LIMIT_BAL', 'AGE', 'BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 
+                     'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6', 'PAY_AMT1', 'PAY_AMT2', 
+                     'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
+categorical_columns = ['SEX', 'EDUCATION', 'MARRIAGE', 'PAY_0', 'PAY_2', 
+                       'PAY_3', 'PAY_4', 'PAY_5', 'PAY_6']
+
+# Handle outliers using Winsorizer
+winsorizer = Winsorizer(capping_method='iqr', tail='both', fold=1.5, variables=numerical_columns)
+X[numerical_columns] = winsorizer.fit_transform(X[numerical_columns])
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Handle imbalance with SMOTE
+smote = SMOTE(random_state=42)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+
+# Scale numerical features
+scaler = MinMaxScaler()
+X_train_resampled[numerical_columns] = scaler.fit_transform(X_train_resampled[numerical_columns])
+X_test[numerical_columns] = scaler.transform(X_test[numerical_columns])
+
+# Train Random Forest model (best model from your analysis)
+rf_model = RandomForestClassifier(
+    n_estimators=100,
+    max_depth=10,
+    min_samples_split=5,
+    min_samples_leaf=2,
+    random_state=42,
+    n_jobs=-1
+)
+
+rf_model.fit(X_train_resampled, y_train_resampled)
+
+# Make predictions
+y_pred = rf_model.predict(X_test)
+
+# Calculate metrics
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+
+print(f"Accuracy: {accuracy:.4f}")
+print(f"Precision: {precision:.4f}")
+print(f"Recall: {recall:.4f}")
+print(f"F1-Score: {f1:.4f}")
+
+# Save the model and preprocessing objects
+with open('random_forest_model.pkl', 'wb') as f:
+    pickle.dump(rf_model, f)
+
+# Save preprocessing pipeline
+preprocessing = {
+    'winsorizer': winsorizer,
+    'scaler': scaler,
+    'smote': smote
+}
+
+with open('preprocessing.pkl', 'wb') as f:
+    pickle.dump(preprocessing, f)
+
+# Save feature names
+with open('feature_names.pkl', 'wb') as f:
+    pickle.dump(list(X.columns), f)
+
+# Save training stats
+training_stats = {
+    'accuracy': accuracy,
+    'precision': precision,
+    'recall': recall,
+    'f1': f1
+}
+
+with open('training_stats.pkl', 'wb') as f:
+    pickle.dump(training_stats, f)
+
+print("Model and preprocessing objects saved successfully!")
 
 # Set page config
 st.set_page_config(
