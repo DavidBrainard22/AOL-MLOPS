@@ -17,26 +17,20 @@ st.write("Aplikasi ini memprediksi apakah nasabah akan gagal membayar tagihan ka
 
 # Load dataset dari CSV
 @st.cache_data
+@st.cache_data
 def load_data():
     try:
         df = pd.read_csv('default_of_credit_card_clients.csv', header=1)
+        # Clean column names: strip spaces and make lowercase
+        df.columns = df.columns.str.strip().str.lower()
+        # Now use the cleaned name (adjust case as needed)
+        if 'default payment next month' not in df.columns:
+            st.error(f"Target column not found. Available columns: {df.columns.tolist()}")
+            st.stop()
+        return df
     except FileNotFoundError:
-        st.error("File dataset 'default_of_credit_card_clients.csv' tidak ditemukan.")
+        st.error("File dataset 'default_of_credit_card_clients.csv' not found.")
         st.stop()
-    
-    # Jika ada kolom ID, hapus
-    if 'ID' in df.columns:
-        df.drop(columns=['ID'], inplace=True)
-    
-    # Hapus baris duplikat
-    df.drop_duplicates(inplace=True)
-    return df
-
-try:
-    df = load_data()
-except Exception as e:
-    st.error(f"Error loading dataset: {e}")
-    st.stop()
 
 # Pisahkan fitur dan target
 X = df.drop(columns=['default payment next month'])
